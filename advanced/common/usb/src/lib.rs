@@ -30,7 +30,6 @@ pub enum Request {
 
     /// SET_CONFIGURATION
     // see section 9.4.7 of the USB specification
-    #[cfg(TODO)]
     SetConfiguration {
         /// bConfigurationValue to change the device to
         value: Option<NonZeroU8>,
@@ -77,6 +76,26 @@ impl Request {
             } else {
                 Err(())
             }
+        } else if bmrequesttype == 0b10000000 && brequest == 6 {
+            let dtype = wvalue >> 8;
+            let dindex = wvalue & 0xff;
+            if dtype == 1 && dindex == 0 && windex == 0 {
+                Ok(Request::GetDescriptor {
+                    descriptor: Descriptor::Device,
+                    length: wlength,
+                })
+            } else if dtype == 2 && dindex == 0 && windex == 0 {
+                Ok(Request::GetDescriptor {
+                    descriptor: Descriptor::Configuration { index: 0 },
+                    length: wlength,
+                })
+            } else {
+                Err(())
+            }
+        } else if bmrequesttype == 0b00000000 && brequest == 5 && windex == 0 && wlength == 0 {
+            Ok(Request::SetAddress {
+                address: Some(core::num::NonZeroU8::new(wvalue as u8).unwrap()),
+            })
         } else {
             defmt::println!("unhandled case in `Request` parser");
             Err(())
@@ -91,7 +110,6 @@ pub enum Descriptor {
     Device,
 
     /// Configuration descriptor
-    #[cfg(TODO)]
     Configuration {
         /// Index of the descriptor
         index: u8,

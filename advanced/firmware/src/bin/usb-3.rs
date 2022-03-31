@@ -54,7 +54,7 @@ mod app {
                 // nothing to do here at the moment
             }
 
-            Event::UsbEp0DataDone => todo!(), // <- TODO
+            Event::UsbEp0DataDone => ep0in.end(usbd),
 
             Event::UsbEp0Setup => {
                 let bmrequesttype = usbd::bmrequesttype(usbd);
@@ -82,9 +82,26 @@ mod app {
                         defmt::println!("GET_DESCRIPTOR Device [length={}]", length);
 
                         // TODO send back a valid device descriptor, truncated to `length` bytes
-                        // let desc = usb2::device::Descriptor { .. };
-                        let resp = [];
-                        ep0in.start(&resp, usbd);
+                        let desc = usb2::device::Descriptor {
+                            bDeviceClass: 0,
+                            bDeviceSubClass: 0,
+                            bDeviceProtocol: 0,
+                            bMaxPacketSize0: usb2::device::bMaxPacketSize0::B64,
+                            idVendor: consts::VID,
+                            idProduct: consts::PID,
+                            bcdDevice: 0x0100,
+                            iManufacturer: None,
+                            iProduct: None,
+                            iSerialNumber: None,
+                            bNumConfigurations: core::num::NonZeroU8::new(1).unwrap(),
+                        };
+                        let resp = desc.bytes();
+                        let resp_trunc: &[u8] = &resp;
+                        if resp.len() as u16 > length {
+                            let resp_trunc = &resp[..length as usize];
+                        }
+                        ep0in.start(resp_trunc, usbd);
+                        // cortex_m::asm::delay(100000);
                     }
                     Request::SetAddress { .. } => {
                         // On Mac OS you'll get this request before the GET_DESCRIPTOR request so we

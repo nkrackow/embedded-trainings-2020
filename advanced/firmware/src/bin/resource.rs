@@ -2,16 +2,18 @@
 #![no_std]
 
 // this imports `beginner/apps/lib.rs` to retrieve our global logger + panicking-behavior
+use cortex_m::asm;
+use dk::peripheral::POWER;
 use firmware as _;
 
 #[rtic::app(device = dk, peripherals = false)]
 mod app {
-    use cortex_m::asm;
-    use dk::peripheral::POWER;
+    use super::*;
 
     #[local]
     struct MyLocalResources {
         power: POWER,
+        counter: u32,
     }
 
     #[shared]
@@ -23,13 +25,15 @@ mod app {
 
         let power = board.power;
 
+        let counter: u32 = 0;
+
         power.intenset.write(|w| w.usbdetected().set_bit());
 
         defmt::println!("USBDETECTED interrupt enabled");
 
         (
             MySharedResources {},
-            MyLocalResources { power },
+            MyLocalResources { power, counter },
             init::Monotonics(),
         )
     }
@@ -43,13 +47,18 @@ mod app {
         }
     }
 
-    #[task(binds = POWER_CLOCK, local = [power])]
+    #[task(binds = POWER_CLOCK, local = [power, counter])]
     //                                      ^^^^^^^ resource access list
     fn on_power_event(cx: on_power_event::Context) {
-        defmt::println!("POWER event occurred");
-
         // resources available to this task
         let resources = cx.local;
+
+        *resources.counter += 1;
+
+        defmt::println!(
+            "POWER event occurredfor the {:?}th time!",
+            resources.counter
+        );
 
         // the POWER peripheral can be accessed through a reference
         let power: &mut POWER = resources.power;
